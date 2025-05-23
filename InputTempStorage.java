@@ -41,16 +41,11 @@ public class InputTempStorage {
     public void readPdu() {
         int limit = InputBuf.limit();
 
-        // System.out.println("Buf: " + Buf);
         InputBuf.limit(pduSize);
-        // System.out.println("Buf limit: " + Buf);
         Pdu.put(InputBuf);
-        // System.out.println("Buf putted: " + Buf);
         Pdu.flip();
         InputBuf.limit(limit);
-        // System.out.println("Buf limit: " + Buf);
         InputBuf.compact();
-        // System.out.println("Buf compact: " + Buf);
     }
 
     public void setPduSize(int size) {

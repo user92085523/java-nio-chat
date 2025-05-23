@@ -5,17 +5,18 @@ import java.nio.channels.SelectionKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 
+//TODO outとinでわけるかも,recycleしてDirectBufferに変更
 public class Exchange {
-    public final long Id;
-    public final ByteBuffer Pdu;
-    public final SelectionKey SenderKey;
-    public final Set<SelectionKey> ReceiverKeys;
+    public long Id;
+    public ByteBuffer Pdu;
+    public SelectionKey SenderKey;
+    public Set<SelectionKey> ReceiversKey;
 
     public static class Builder {
         private final long Id;
         private final ByteBuffer Pdu;
         private final SelectionKey SenderKey;
-        private Set<SelectionKey> ReceiverKeys;
+        private Set<SelectionKey> ReceiversKey;
 
         public Builder(long id, ByteBuffer pdu, SelectionKey key) {
             Id = id;
@@ -28,8 +29,8 @@ public class Exchange {
             SenderKey = key;
         }
 
-        public Builder receiverKeys(Set<SelectionKey> receiverKeys) {
-            ReceiverKeys = receiverKeys;
+        public Builder receiversKey(Set<SelectionKey> receiversKey) {
+            ReceiversKey = receiversKey;
             return this;
         }
 
@@ -42,12 +43,12 @@ public class Exchange {
     private Exchange(Builder builder) {
         Id = builder.Id;
         Pdu = builder.Pdu;
-        SenderKey = builder.SenderKey;
-        ReceiverKeys = builder.ReceiverKeys != null ? builder.ReceiverKeys : null;
+        SenderKey = builder.SenderKey != null ? builder.SenderKey : null;
+        ReceiversKey = builder.ReceiversKey != null ? builder.ReceiversKey : null;
     }
 
     public String toString() {
-        return new String("Id: " + Id + "\nPdu: " + Pdu + "\nSenderKey: " + SenderKey + "\nReceiverKeys: " + ReceiverKeys);
+        return new String("Id: " + Id + "\nPdu: " + Pdu + "\nSenderKey: " + SenderKey + "\nReceiversKey: " + ReceiversKey + "\nReceiversKey Size: " + ReceiversKey.size());
     }
 
     public String pduToString() {

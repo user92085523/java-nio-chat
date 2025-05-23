@@ -7,10 +7,10 @@ public class Const {
     }
 
     public class Header {
-        public static final int TOTAL_SIZE = 8;
+        public static final int TOTAL_SIZE = 4;
         public static final int H1_SIZE = 3;
         public static final int H2_SIZE = 1;
-        public static final int H3_SIZE = 4;
+        // public static final int H3_SIZE = 4;
     }
 
     public class Body {

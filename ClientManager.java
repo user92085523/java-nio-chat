@@ -8,11 +8,13 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
 import chat.event.Reader;
+import chat.exchange.ClientExchangeProcessor;
 import chat.exchange.Exchange;
 import chat.exchange.ExchangeManager;
 import chat.session.Session;
@@ -20,8 +22,8 @@ import chat.session.SessionManager;
 import chat.util.Const;
 
 public class ClientManager {
-    private final ExchangeManager exchangeManager = new ExchangeManager();
-    private final SessionManager sessionManager = new SessionManager();
+    private final ExchangeManager exchangeManager = new ExchangeManager(new ClientExchangeProcessor());
+    //TODO client用のSessionManagerを作ることも検討
     private final Reader reader = new Reader();
     private SelectionKey key;
     private boolean input_ready;
@@ -53,7 +55,10 @@ public class ClientManager {
 
                 if (actions != 0) {
                     if (key.isReadable()) {
-                        List<Exchange> inExchanges = reader.handle(sessionManager, exchangeManager, key);
+                        List<Exchange> inExchanges = new ArrayList<>();
+                        inExchanges = reader.handle(key);
+
+                        System.out.println("inExchange null?: " + (inExchanges == null));
 
                         if (inExchanges != null) {
                             for (Exchange exchange : inExchanges) {
@@ -110,17 +115,17 @@ public class ClientManager {
             String input;
             int cnt = 0;
 
-            byte[] str = {0, 0, 5, -126, -127, -1, 1, 1, 97, 98, 99, 100, 101};
+            byte[] str = {0, 0, 5, 10, 97, 98, 99, 100, 101};
 
             try {
                 while (true) {
                     if(input_ready == true) {
                         Thread.sleep(10);
                     } else {
-                        Thread.sleep(10);
+                        Thread.sleep(100);
                         // System.out.println("inb:" + inputBuf);
                         Random rand = new Random();
-                        int rnd = rand.nextInt(str.length * 30);
+                        int rnd = rand.nextInt(str.length * 1 + 1);
 
                         for (int i = 0; i < rnd; i++) {
                             inputBuf.put(str[cnt]);
@@ -128,7 +133,7 @@ public class ClientManager {
                             if (cnt == str.length) cnt = 0;
                         }
 
-                        System.out.println("inputBuf:" + inputBuf);
+                        // System.out.println("inputBuf:" + inputBuf);
 
                         if (rnd == str.length) {
                             input_ready = true;

@@ -23,10 +23,10 @@ import chat.event.Reader;
 import chat.event.Writer;
 import chat.exchange.Exchange;
 import chat.exchange.ExchangeManager;
+import chat.exchange.ServerExchangeProcessor;
 
 public class ServerManager {
-    private final SessionManager sessionManager = new SessionManager();
-    private final ExchangeManager exchangeManager = new ExchangeManager();
+    private final ExchangeManager exchangeManager = new ExchangeManager(new ServerExchangeProcessor());
     private final Reader reader = new Reader();
     private final Writer writer = new Writer();
 
@@ -52,7 +52,6 @@ public class ServerManager {
 
                 long start = System.currentTimeMillis();
 
-                System.out.println("clients: " + sessionManager.getClients().size());
 
                 Set<SelectionKey> selectedKeys = selector.selectedKeys();
                 Iterator<SelectionKey> iter = selectedKeys.iterator();
@@ -64,36 +63,29 @@ public class ServerManager {
                     iter.remove();
     
                     if (key.isAcceptable()) {
-                        sessionManager.accept(key);
+                        SessionManager.accept(key);
                     }
 
                     if (key.isReadable()) {
-                        List<Exchange> inExchanges = new ArrayList<>();
 
-                        inExchanges = reader.handle(sessionManager, exchangeManager, key);
+                        List<Exchange> inExchanges = reader.handle(key);
 
                         if (inExchanges == null) {
                             System.out.println("NO EXCHANGES");
                             continue;
                         }
 
-                        if (inExchanges != null) {
+                        if (inExchanges.size() > 0) {
                             System.out.println("inputExchanges size: " + inExchanges.size());
-                            System.out.println("exchangeID: " + inExchanges.getLast().Id);
 
+                            List<Exchange> outExchanges = exchangeManager.process(inExchanges);
 
-                            Set<SelectionKey> clientKeys = new HashSet<>();
-                            for (ClientID clientID : sessionManager.getClients()) {
-                                clientKeys.add(clientID.getKey());
+                            if (outExchanges != null) {
+                                writer.writeNow(outExchanges);
                             }
-
-                            List<Exchange> outExchange = new ArrayList<>();
-                            for (Exchange inExchange : inExchanges) {
-                                outExchange.add(exchangeManager.createOutputExchange(inExchange.Pdu, inExchange.SenderKey, clientKeys));
-                            }
-
-                            writer.writeNow(outExchange);
                         }
+
+                        inExchanges.clear();
 
                     }
                 }
@@ -105,6 +97,7 @@ public class ServerManager {
             }
         } catch (Exception e) {
             System.err.println(e);
+            throw new Error("ServerManager");
         }
     }
 
@@ -124,7 +117,7 @@ public class ServerManager {
         // System.out.println("test");
         try {
             SocketChannel sc = (SocketChannel) key.channel();
-            byte[] buf = new byte[] {0, 0, 9, 1, 1, -128, -64, 15, 'r', 'c', 'v', 'd', '2', 'm', 's', 'g', 0x04};
+            byte[] buf = new byte[] {0, 0, 9, 1, 'r', 'c', 'v', 'd', '2', 'm', 's', 'g', 0x04};
             int bytes_written = sc.write(ByteBuffer.wrap(buf));
             // System.out.println("bytes_written: " + bytes_written);
         } catch (Exception e) {

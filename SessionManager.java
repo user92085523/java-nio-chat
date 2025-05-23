@@ -5,6 +5,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -13,15 +14,16 @@ import chat.session.Session;
 import chat.util.Const;
 
 public class SessionManager {
-    private long sessionCnt = 0;
-    private Set<ClientID> clients = new HashSet<>(Const.Server.MAX_CLIENT);
+    private static long sessionCnt = 0L;
+    private static Set<Long> clientsId = new HashSet<>();
+    private static HashMap<Long, SelectionKey> clientsEntity = new HashMap<>();
 
     public SessionManager() {
         System.out.println("SessionManager: " + hashCode());
     }
 
-    public void accept(SelectionKey key) {
-        if (clients.size() == Const.Server.MAX_CLIENT) {
+    public static void accept(SelectionKey key) {
+        if (clientsId.size() == Const.Server.MAX_CLIENT) {
             System.out.println("max client size");
             //TODO
             return;
@@ -35,39 +37,52 @@ public class SessionManager {
             SelectionKey tempKey = sc.register(selector, SelectionKey.OP_READ);
             Session session = createSession(tempKey);
             tempKey.attach(session);
-            addToClients(session.getClientID());
-            System.out.println(session.getClientID());
+
+            addClient(session.getClientID().getId(), tempKey);
+
+            // clientsId.stream()
+            //     .forEach(id -> System.out.println("id: " + id));
+            // clientsEntity.forEach((k, v) -> System.out.println("key: " + k + "       value: " + v));
+            
         } catch (Exception e) {
             System.err.println(e);
             System.exit(-1);
         }
     }
 
-    public void disconnect(SelectionKey key) {
+    public static void disconnect(SelectionKey key) {
         try {
             SocketChannel sc = (SocketChannel) key.channel();
             Session session = (Session) key.attachment();
             sc.close();
             key.cancel();
-            System.out.println("clients cnt: " + clients.size());
-            clients.remove(session.getClientID());
-            System.out.println("clients cnt: " + clients.size());
+
+            removeClient(session.getClientID().getId());
+
+            // clientsId.stream()
+            //     .forEach(id -> System.out.println("id: " + id));
+
+            // clientsEntity.forEach((k, v) -> System.out.println("key: " + k + "       value: " + v));
         } catch (Exception e) {
             System.err.println(e);
         }
     }
 
-    public Session createSession(SelectionKey key) {
+    private static Session createSession(SelectionKey key) {
         return new Session(--sessionCnt, key);
     }
 
-    public void addToClients(ClientID clientID) {
-        clients.add(clientID);
+    private static void addClient(long id, SelectionKey key) {
+        clientsId.add(id);
+        clientsEntity.put(id, key);
     }
 
+    private static  void removeClient(long id) {
+        clientsId.remove(id);
+        clientsEntity.remove(id);
+    }
 
-
-    public Set<ClientID> getClients() {
-        return clients;
+    public static Set<SelectionKey> getClientsKey() {
+        return new HashSet<SelectionKey>(clientsEntity.values());
     }
 }

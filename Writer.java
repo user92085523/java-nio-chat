@@ -12,17 +12,19 @@ public class Writer {
         System.out.println("Writer: " + hashCode());
     }
 
-    public void writeNow(List<Exchange> exchanges) {
-        for (Exchange exchange : exchanges) {
+    public void writeNow(List<Exchange> outExchanges) {
+        for (Exchange exchange : outExchanges) {
             // System.out.println("writeNow");
             // exchange.ReceiverKeys.forEach(key -> System.out.println(key));
-            for (SelectionKey receiverKey : exchange.ReceiverKeys) {
+            for (SelectionKey receiverKey : exchange.ReceiversKey) {
 
                 try {
                     SocketChannel sc = (SocketChannel) receiverKey.channel();
+                    // System.out.println("Pdu: " + exchange.Pdu);
                     int pduSize = exchange.Pdu.limit();
                     int bytesWrite = sc.write(exchange.Pdu);
 
+                    // System.out.println("Pdu: " + exchange.Pdu);
                     Session session = (Session) receiverKey.attachment();
                     // System.out.println("receiver.Id: " + session.getClientID().getId());
                     if (pduSize != bytesWrite) {
@@ -40,6 +42,7 @@ public class Writer {
                 }
             }
         }
-        System.out.println("exchanges: " + exchanges.size());
+        System.out.println("writed");
+        System.out.println("exchanges: " + outExchanges.size());
     }
 }
