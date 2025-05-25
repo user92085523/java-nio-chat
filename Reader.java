@@ -6,86 +6,89 @@ import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.management.InvalidAttributeValueException;
+
 import chat.exchange.InputTempStorage;
 import chat.exchange.Exchange;
 import chat.exchange.ExchangeManager;
+import chat.exchange.InputExchanges;
 import chat.session.Session;
 import chat.session.SessionManager;
 import chat.util.Header;
 import chat.util.Const;
 
 public final class Reader {
-    public static final List<Exchange> inExchanges = new ArrayList<>(50);
-
-    // public static final List<InputExchange> inputExchanges = new ArrayList<>(10);
-    // static{
-    //     for (int i = 0; i < 10; i++) {
-    //         inputExchanges.add(new InputExchange());
-    //     }
-    // }
+    public final InputExchanges inputExchanges = new InputExchanges();
 
     public Reader() {
         System.out.println("Reader: " + hashCode());
     }
 
-    public List<Exchange> handle(SelectionKey key) {
+    public InputExchanges handle(SelectionKey key) {
         try {
             SocketChannel sc = (SocketChannel) key.channel();
             Session session = (Session) key.attachment();
             InputTempStorage storage = session.getStorage();
-            System.out.println("before read Buf: " + storage.getInputBuf());
-            int bytes_read = sc.read(storage.getInputBuf());
-            int limit = storage.getInputBufPosition();
-            System.out.println("Buf:" + storage.getInputBuf());
 
-            if (bytes_read == -1) {
+            System.out.println("before read Buf: " + storage.getBuf());
+
+            if (sc.read(storage.getBuf()) == -1) {
                 System.out.println("DC");
                 SessionManager.disconnect(key);
                 return null;
             }
 
-            if (limit < Const.Header.TOTAL_SIZE + 1 || storage.getPduSize() > limit) {
-                System.out.println("pduSize: " + storage.getPduSize());
-                System.out.println("not enough data");
+            int limit = storage.getBufPosition();
+
+            System.out.println("Buf:" + storage.getBuf());
+
+            if (limit < Const.Pdu.HEADER_TOTAL_SIZE + 1 || storage.getPduSize() > limit) {
+                System.out.println("data too small to process");
                 return null;
             }
 
-            System.out.println("before loop Buf: " + storage.getInputBuf());
-
             while (true) {
 
-                storage.flipInputBuf();
+                storage.flipBuf();
 
                 if (storage.getPduSize() == 0) {
-                    storage.setPduSize(storage.getPayloadSize() + Const.Header.TOTAL_SIZE);
+                    int payloadSize = storage.setPayloadSize();
+
+                    if (payloadSize < Const.Pdu.PAYLOAD_MIN_SIZE || payloadSize > Const.Pdu.PAYLOAD_MAX_SIZE) {
+                        SessionManager.disconnect(key);
+                        System.out.println("DC");
+                        throw new InvalidAttributeValueException("Logic Error OR Client sending illegal Header\npduSize :" + payloadSize);
+                    }
+
+                    if (storage.setPduSize() > storage.getBufLimit()) {
+                        storage.compactBuf();
+                        return inputExchanges.getInputCnt() > 0 ? inputExchanges : null;
+                    }
                 }
 
-                if (storage.getPduSize() < Const.Header.TOTAL_SIZE + 1 || storage.getPduSize() > 1024) {
-                    System.out.println("pduSize:" + storage.getPduSize());
-                    System.out.println("Buf: " + storage.getInputBuf());
-                    throw new Error("Logic Error: chat.util.Header?");
-                }
-
-                if (storage.getInputBufLimit() < storage.getPduSize()) {
-                    storage.compactInputBuf();
-                    break;
-                }
-
-                storage.readPdu();
-                inExchanges.add(ExchangeManager.createInputExchange(storage.getPdu(), key));
+                inputExchanges.readInto(storage.getBuf(), storage.getPayloadSize());
 
                 storage.resetPduSize();
 
-                if (storage.getInputBufPosition() < Const.Header.TOTAL_SIZE + 1) {
+                if (storage.getBufPosition() < Const.Pdu.HEADER_TOTAL_SIZE + 1) {
                     break;
                 }
             }
 
-            System.out.println("Buf:" + storage.getInputBuf());
+            System.out.println("Buf:" + storage.getBuf());
         } catch (Exception e) {
-            System.err.println(e);
+            if (e instanceof InvalidAttributeValueException) {
+                e.printStackTrace();
+            } else {
+                e.printStackTrace();
+            }
+            System.out.println("DC");
+            SessionManager.disconnect(key);
+            inputExchanges.reset();
+            return null;
         }
 
-        return inExchanges;
+        return inputExchanges;
     }
+
 }

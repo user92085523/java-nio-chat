@@ -75,7 +75,7 @@ public class ServerExchangeProcessor extends ExchangeProcessor{
 
         byte[] h1 = Header.getPayloadSize(size);
 
-        ByteBuffer newPdu = ByteBuffer.allocate(size + Const.Header.TOTAL_SIZE);
+        ByteBuffer newPdu = ByteBuffer.allocate(size + Const.Pdu.MAX_SIZE);
 
 
         newPdu.put(h1);

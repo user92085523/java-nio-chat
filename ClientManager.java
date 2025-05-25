@@ -55,18 +55,17 @@ public class ClientManager {
 
                 if (actions != 0) {
                     if (key.isReadable()) {
-                        List<Exchange> inExchanges = new ArrayList<>();
-                        inExchanges = reader.handle(key);
+                        reader.handle(key);
 
-                        System.out.println("inExchange null?: " + (inExchanges == null));
+                        // System.out.println("inExchange null?: " + (inExchanges == null));
 
-                        if (inExchanges != null) {
-                            for (Exchange exchange : inExchanges) {
-                                System.out.println(exchange.pduToString());
-                            }
-                            System.out.println("inExchanges size: " + inExchanges.size());
-                            System.out.println("exchangeID:" + inExchanges.getLast().Id);
-                        }
+                        // if (inExchanges != null) {
+                        //     for (Exchange exchange : inExchanges) {
+                        //         System.out.println(exchange.pduToString());
+                        //     }
+                        //     System.out.println("inExchanges size: " + inExchanges.size());
+                        //     System.out.println("exchangeID:" + inExchanges.getLast().Id);
+                        // }
                     }
 
                 }

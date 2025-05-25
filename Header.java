@@ -4,13 +4,11 @@ import java.sql.Time;
 import java.time.LocalTime;
 import java.util.Random;
 
-public class Header {
-    private static final int HEADER_TOTAL_SIZE = 4;
-    private static final int HEADER_H1_SIZE = 3;
-    private static final int HEADER_H2_SIZE = 1;
-    private static final int MAX_PDU_SIZE = 1024;
+import chat.util.Const;
 
-    private static final int pow2[] = new int[HEADER_H1_SIZE * 8];
+public class Header {
+
+    private static final int pow2[] = new int[Const.Pdu.H1_SIZE * 8];
     static{
         int max = (int) Math.pow(2, pow2.length - 1);
         for (int i = pow2.length - 1; i >= 0; i--) {
@@ -20,7 +18,7 @@ public class Header {
     }
 
     private static boolean validateSize(int bytes) {
-        return (bytes + HEADER_TOTAL_SIZE <= MAX_PDU_SIZE) ? true : false;
+        return (bytes + Const.Pdu.HEADER_TOTAL_SIZE <= Const.Pdu.MAX_SIZE) ? true : false;
     }
 
     public static byte[] getPayloadSize(int size) {

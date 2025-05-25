@@ -23,6 +23,7 @@ import chat.event.Reader;
 import chat.event.Writer;
 import chat.exchange.Exchange;
 import chat.exchange.ExchangeManager;
+import chat.exchange.InputExchanges;
 import chat.exchange.ServerExchangeProcessor;
 
 public class ServerManager {
@@ -67,25 +68,35 @@ public class ServerManager {
                     }
 
                     if (key.isReadable()) {
+                        
+                        InputExchanges inputExchanges = reader.handle(key);
 
-                        List<Exchange> inExchanges = reader.handle(key);
+                        if (inputExchanges != null) {
+                            inputExchanges.echo();
 
-                        if (inExchanges == null) {
-                            System.out.println("NO EXCHANGES");
-                            continue;
+
+                            inputExchanges.reset();
+                            System.out.println("reset");
+                            inputExchanges.echo();
+                        } else {
+                            System.out.println("inputExchanges == NULL");
                         }
+                        // if (inExchanges == null) {
+                        //     System.out.println("NO EXCHANGES");
+                        //     continue;
+                        // }
 
-                        if (inExchanges.size() > 0) {
-                            System.out.println("inputExchanges size: " + inExchanges.size());
+                        // if (inExchanges.size() > 0) {
+                        //     System.out.println("inputExchanges size: " + inExchanges.size());
 
-                            List<Exchange> outExchanges = exchangeManager.process(inExchanges);
+                        //     List<Exchange> outExchanges = exchangeManager.process(inExchanges);
 
-                            if (outExchanges != null) {
-                                writer.writeNow(outExchanges);
-                            }
-                        }
+                        //     if (outExchanges != null) {
+                        //         writer.writeNow(outExchanges);
+                        //     }
+                        // }
 
-                        inExchanges.clear();
+                        // inExchanges.clear();
 
                     }
                 }
