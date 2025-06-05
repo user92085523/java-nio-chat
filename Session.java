@@ -4,26 +4,36 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 
 import chat.exchange.InputTempStorage;
+import chat.exchange.PendingExchanges;
 import chat.util.Const;
 
 public class Session {
     private final InputTempStorage storage = new InputTempStorage();
-    private final ClientID clientID;
+    private final ClientInfo clientInfo;
+    private final PendingExchanges pendingExchanges = new PendingExchanges();
 
     public Session(long id, SelectionKey key) {
         System.out.println("Session: " + hashCode());
-        clientID = new ClientID(id, key);
+        clientInfo = new ClientInfo(id, key);
+    }
+
+    public boolean isPending() {
+        return pendingExchanges.hasPendingExchange();
     }
 
     public Session() {
-        clientID = null;
+        clientInfo = null;
     }
 
     public InputTempStorage getStorage() {
         return storage;
     }
 
-    public ClientID getClientID() {
-        return clientID;
+    public ClientInfo getClientInfo() {
+        return clientInfo;
+    }
+
+    public PendingExchanges getPendingExchanges() {
+        return pendingExchanges;
     }
 }

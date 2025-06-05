@@ -15,21 +15,22 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import chat.session.ClientID;
+import chat.session.ClientInfo;
 import chat.session.Session;
 import chat.session.SessionManager;
 import chat.util.Const;
 import chat.event.Reader;
 import chat.event.Writer;
-import chat.exchange.Exchange;
-import chat.exchange.ExchangeManager;
 import chat.exchange.InputExchanges;
-import chat.exchange.ServerExchangeProcessor;
+import chat.exchange.OutputExchanges;
+import chat.server.ServerProcessor;
 
 public class ServerManager {
-    private final ExchangeManager exchangeManager = new ExchangeManager(new ServerExchangeProcessor());
+    private final ServerProcessor processor = new ServerProcessor();
     private final Reader reader = new Reader();
     private final Writer writer = new Writer();
+    public final InputExchanges inExchanges = new InputExchanges();
+    public final OutputExchanges outExchanges = new OutputExchanges();
 
     private Selector selector;
 
@@ -69,36 +70,32 @@ public class ServerManager {
 
                     if (key.isReadable()) {
                         
-                        InputExchanges inputExchanges = reader.handle(key);
+                        reader.handle(key, inExchanges);
 
-                        if (inputExchanges != null) {
-                            inputExchanges.echo();
+                        if (inExchanges.hasInputs()) {
 
+                            processor.handle(inExchanges, outExchanges);
+                            // inExchanges.echo();
+                            inExchanges.reset();
+                            // System.out.println("reset");
 
-                            inputExchanges.reset();
-                            System.out.println("reset");
-                            inputExchanges.echo();
-                        } else {
-                            System.out.println("inputExchanges == NULL");
+                            // outExchanges.echo();
+                            // System.out.println("queued:" + outExchanges.getQueued().size());
+
+                            if (outExchanges.hasQueued()) {
+                                writer.tryWrite(outExchanges);
+                                outExchanges.echo();
+                            }
+                            // outExchanges.run();
                         }
-                        // if (inExchanges == null) {
-                        //     System.out.println("NO EXCHANGES");
-                        //     continue;
-                        // }
-
-                        // if (inExchanges.size() > 0) {
-                        //     System.out.println("inputExchanges size: " + inExchanges.size());
-
-                        //     List<Exchange> outExchanges = exchangeManager.process(inExchanges);
-
-                        //     if (outExchanges != null) {
-                        //         writer.writeNow(outExchanges);
-                        //     }
-                        // }
-
-                        // inExchanges.clear();
 
                     }
+
+                    // Session session = (Session) key.attachment();
+
+                    // if (session == null) continue;
+
+                    // System.out.println("session has pending:" + session.getPendingExchanges().getPendingCnt());
                 }
 
                 System.out.println("time: " + (System.currentTimeMillis() - start) + " ms");
@@ -107,7 +104,7 @@ public class ServerManager {
                 System.out.flush();
             }
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
             throw new Error("ServerManager");
         }
     }

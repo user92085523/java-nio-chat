@@ -14,23 +14,26 @@ import java.util.Random;
 import java.util.Scanner;
 
 import chat.event.Reader;
-import chat.exchange.ClientExchangeProcessor;
-import chat.exchange.Exchange;
-import chat.exchange.ExchangeManager;
+import chat.exchange.InputExchanges;
 import chat.session.Session;
 import chat.session.SessionManager;
 import chat.util.Const;
 
 public class ClientManager {
-    private final ExchangeManager exchangeManager = new ExchangeManager(new ClientExchangeProcessor());
-    //TODO client用のSessionManagerを作ることも検討
+    public int wait;
+    private final InputExchanges inExchanges = new InputExchanges();
     private final Reader reader = new Reader();
     private SelectionKey key;
     private boolean input_ready;
     private ByteBuffer inputBuf = ByteBuffer.allocateDirect(1024 * 1024 * 10);
 
     public ClientManager() {
+        System.out.println("ClientManager: " + hashCode());        
+    }
+    
+    public ClientManager(int i) {
         System.out.println("ClientManager: " + hashCode());
+        wait = i;
     }
 
     public void run() {
@@ -46,17 +49,22 @@ public class ClientManager {
                 if (input_ready) {
                     int limit = inputBuf.limit();
                     inputBuf.flip();
-                    System.out.println("inb flip:" + inputBuf);
+                    // System.out.println("inb flip:" + inputBuf);
                     sc.write(inputBuf);
-                    System.out.println("inb write:" + inputBuf);
+                    // System.out.println("inb write:" + inputBuf);
                     inputBuf.compact();
                     input_ready = false;
                 }
 
                 if (actions != 0) {
                     if (key.isReadable()) {
-                        reader.handle(key);
+                        reader.handle(key, inExchanges);
 
+                        if (inExchanges.hasInputs()) {
+                            inExchanges.echo();
+                            inExchanges.reset();
+                            inExchanges.echo();
+                        }
                         // System.out.println("inExchange null?: " + (inExchanges == null));
 
                         // if (inExchanges != null) {

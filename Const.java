@@ -13,10 +13,12 @@ public class Const {
         public static final int H2_SIZE = 1;
         public static final int PAYLOAD_MAX_SIZE = MAX_SIZE - HEADER_TOTAL_SIZE;
         public static final int PAYLOAD_MIN_SIZE = 1;
+        public static final int MIN_SIZE = HEADER_TOTAL_SIZE + PAYLOAD_MIN_SIZE;
     }
 
     public class Exchange {
-        public static final int MAX_INPUT_EXCHANGE_SIZE = 10;
+        public static final int MAX_INPUT_EXCHANGE_SIZE = 30;
+        public static final int MAX_OUTPUT_EXCHANGE_SIZE = 50;
     }
 
     public class Buffer {

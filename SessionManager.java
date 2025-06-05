@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import chat.session.ClientID;
+import chat.session.ClientInfo;
 import chat.session.Session;
 import chat.util.Const;
 
@@ -38,7 +38,7 @@ public class SessionManager {
             Session session = createSession(tempKey);
             tempKey.attach(session);
 
-            addClient(session.getClientID().getId(), tempKey);
+            addClient(session.getClientInfo().getId(), tempKey);
 
             // clientsId.stream()
             //     .forEach(id -> System.out.println("id: " + id));
@@ -57,7 +57,8 @@ public class SessionManager {
             sc.close();
             key.cancel();
 
-            removeClient(session.getClientID().getId());
+            System.out.println("disconnect");
+            removeClient(session.getClientInfo().getId());
 
             // clientsId.stream()
             //     .forEach(id -> System.out.println("id: " + id));
@@ -77,12 +78,28 @@ public class SessionManager {
         clientsEntity.put(id, key);
     }
 
-    private static  void removeClient(long id) {
-        clientsId.remove(id);
-        clientsEntity.remove(id);
+    private static void removeClient(long id) {
+        // System.out.println("id = " + id);
+        if (clientsId.contains(id)) {
+            // System.out.println("clientsId exist removing");
+            clientsId.remove(id);
+        } else {
+            // System.out.println("clientsId does not exist");
+        }
+
+        if (clientsEntity.containsKey(id)) {
+            // System.out.println("clientsEntity exist removing");
+            clientsEntity.remove(id);
+        } else {
+            // System.out.println("clientsEntity does not exist");
+        }
     }
 
-    public static Set<SelectionKey> getClientsKey() {
+    public static int getClientsCnt() {
+        return clientsId.size();
+    }
+
+    public static Set<SelectionKey> getClientsKeyClone() {
         return new HashSet<SelectionKey>(clientsEntity.values());
     }
 }

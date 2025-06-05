@@ -9,8 +9,6 @@ import java.util.List;
 import javax.management.InvalidAttributeValueException;
 
 import chat.exchange.InputTempStorage;
-import chat.exchange.Exchange;
-import chat.exchange.ExchangeManager;
 import chat.exchange.InputExchanges;
 import chat.session.Session;
 import chat.session.SessionManager;
@@ -18,13 +16,12 @@ import chat.util.Header;
 import chat.util.Const;
 
 public final class Reader {
-    public final InputExchanges inputExchanges = new InputExchanges();
 
     public Reader() {
         System.out.println("Reader: " + hashCode());
     }
 
-    public InputExchanges handle(SelectionKey key) {
+    public InputExchanges handle(SelectionKey key, InputExchanges inExchanges) {
         try {
             SocketChannel sc = (SocketChannel) key.channel();
             Session session = (Session) key.attachment();
@@ -62,11 +59,11 @@ public final class Reader {
 
                     if (storage.setPduSize() > storage.getBufLimit()) {
                         storage.compactBuf();
-                        return inputExchanges.getInputCnt() > 0 ? inputExchanges : null;
+                        return inExchanges.getInputCnt() > 0 ? inExchanges : null;
                     }
                 }
 
-                inputExchanges.readInto(storage.getBuf(), storage.getPayloadSize());
+                inExchanges.set(storage.getBuf(), storage.getPayloadSize(), key);
 
                 storage.resetPduSize();
 
@@ -77,6 +74,7 @@ public final class Reader {
 
             System.out.println("Buf:" + storage.getBuf());
         } catch (Exception e) {
+            //例外発生時、受け取ったすべてのデータは破棄される
             if (e instanceof InvalidAttributeValueException) {
                 e.printStackTrace();
             } else {
@@ -84,11 +82,11 @@ public final class Reader {
             }
             System.out.println("DC");
             SessionManager.disconnect(key);
-            inputExchanges.reset();
+            inExchanges.reset();
             return null;
         }
 
-        return inputExchanges;
+        return inExchanges;
     }
 
 }
