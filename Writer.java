@@ -1,6 +1,8 @@
 package chat.event;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
@@ -18,57 +20,63 @@ public class Writer {
         System.out.println("Writer: " + hashCode());
     }
 
-
-    //TODO pool作成後の最初だけ receiversKeyがある状態
     public void tryWrite(OutputExchanges outExchanges) {
         try {
+            System.out.println("\ntryWrite");
             outExchanges.echo();
+            System.out.println("loop\n");
             for (OutputExchange outExchange : outExchanges.getQueued()) {
                 ByteBuffer pdu = outExchange.getPdu();
                 int pduSize = outExchange.getPduSize();
-                // System.out.println("pduSize:" + pduSize);
-                // System.out.println("pdu:" + pdu);
-                // System.out.println("queued cnt:" + outExchanges.getQueued().size());
 
-                Set<SelectionKey> receiversKey = outExchange.getReceiversKey();
-                Iterator<SelectionKey> iter = receiversKey.iterator();
+                Set<SelectionKey> receiversKey = SessionManager.removeDisconnectedClientsFrom(outExchange.getReceiversKey());
 
-                System.out.println("receiversKey isEmpty:" + receiversKey.isEmpty());
-                while (iter.hasNext()) {
-                    SelectionKey receiver = iter.next();
-                    Session session = (Session) receiver.attachment();
+                if (!receiversKey.isEmpty()) {
+                    Iterator<SelectionKey> iter = receiversKey.iterator();
 
-                    // if (!receiver.isValid()) {
-                    //     System.out.println("invalid key");
-                    //     continue;
-                    // }
+                    while (iter.hasNext()) {
+                        SelectionKey receiver = iter.next();
 
-                    if (session.isPending()) {
-                        //TODO 保持上限の例外
-                        System.out.println("isPending");
-                        session.getPendingExchanges().add(pdu, pduSize, 0);
-                        continue;
-                    }
+                        if (!receiver.isValid()) {
+                            continue;   
+                        }
+                        
+                        Session session = (Session) receiver.attachment();
 
+                        if (session.isPending()) {
+                            System.out.println("isPending");
+                            session.getPendingExchanges().add(pdu, pduSize, 0);
+                            continue;
+                        }
 
-                    SocketChannel sc = (SocketChannel) receiver.channel();
-                    int bytesWritten = write(sc, pdu);
-                    outExchange.rewind();
+                        SocketChannel sc = (SocketChannel) receiver.channel();
+                        int bytesWritten = 0;
 
-                    if (bytesWritten != pduSize) {
-                        System.out.println("bytesWritten != pduSize");
-                        iter.remove();
-                    } else {
-                        System.out.println("written but not all");
-                        session.getPendingExchanges().add(pdu, pduSize, bytesWritten);
+                        try {
+                            bytesWritten = writeToChannel(sc, pdu);
+                        } catch (Exception e) {
+                            System.out.println("happy");
+                            e.printStackTrace();
+                            if (e instanceof ClosedChannelException) {
+                                SessionManager.handleClosedChannelException(receiver);
+                            } else if (e instanceof IOException) {
+                                //TODO 例外の種類について調査
+                            }
+                        } finally {
+                            outExchange.rewind();
+                        }
+
+                        //TODO　テスト中　== に戻すこと
+                        if (bytesWritten == pduSize) {
+                            System.out.println("bytesWritten != pduSize");
+                            iter.remove();
+                        } else {
+                            System.out.println("written but not all");
+                            session.getPendingExchanges().add(pdu, pduSize, bytesWritten);
+                        }
                     }
                 }
 
-                // System.out.println("keys:" + outExchange.getReceiversKey());
-                // System.out.println("before outExchange move");
-                // outExchanges.echo();
-                System.out.println("clientsCnt:" + SessionManager.getClientsCnt());
-                System.out.println("receiversKey:" + receiversKey);
                 if (receiversKey.isEmpty()) {
                     System.out.println("receiversKey is empty");
                     outExchanges.removeQueuedAddToPool();
@@ -76,17 +84,15 @@ public class Writer {
                     System.out.println("receiversKey not empty");
                     outExchanges.removeQueuedAddToPending();
                 }
-                // System.out.println("after outExchange move");
-                // outExchanges.echo();
 
-                // System.out.println("outExchange.receiversKey:" + outExchange.getReceiversKey().size());
+                System.out.println();
             }
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
         }
     }
 
-    public int write(SocketChannel sc, ByteBuffer pdu) throws Exception{
+    public int writeToChannel(SocketChannel sc, ByteBuffer pdu) throws Exception{
         return sc.write(pdu);
     }
 }

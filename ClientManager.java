@@ -1,5 +1,6 @@
 package chat.client;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.BufferOverflowException;
@@ -13,19 +14,26 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
+import chat.client.ClientProcessor;
+import chat.client.ClientReader;
+import chat.event.Processor;
 import chat.event.Reader;
+import chat.event.Writer;
 import chat.exchange.InputExchanges;
-import chat.session.Session;
+import chat.exchange.OutputExchanges;
 import chat.session.SessionManager;
 import chat.util.Const;
 
 public class ClientManager {
-    public int wait;
+    private final Processor processor = new ClientProcessor();
+    private final Reader reader = new ClientReader();
+    private final Writer writer = new Writer();
     private final InputExchanges inExchanges = new InputExchanges();
-    private final Reader reader = new Reader();
+    private final OutputExchanges outExchanges = new OutputExchanges();
     private SelectionKey key;
     private boolean input_ready;
     private ByteBuffer inputBuf = ByteBuffer.allocateDirect(1024 * 1024 * 10);
+    public int wait;
 
     public ClientManager() {
         System.out.println("ClientManager: " + hashCode());        
@@ -44,7 +52,9 @@ public class ClientManager {
         SocketChannel sc = (SocketChannel) key.channel();
         try {
             while (true) {
+                // System.out.println("loop");
                 int actions = selector.select(10);
+                // System.out.println(selector.keys());
 
                 if (input_ready) {
                     int limit = inputBuf.limit();
@@ -58,12 +68,16 @@ public class ClientManager {
 
                 if (actions != 0) {
                     if (key.isReadable()) {
-                        reader.handle(key, inExchanges);
+                        int inputCnt = reader.handle(key, inExchanges);
 
-                        if (inExchanges.hasInputs()) {
+                        if (inputCnt > 0) {
                             inExchanges.echo();
+                            
+                            processor.handle(inExchanges, outExchanges);
+
                             inExchanges.reset();
                             inExchanges.echo();
+
                         }
                         // System.out.println("inExchange null?: " + (inExchanges == null));
 
@@ -82,7 +96,9 @@ public class ClientManager {
                 Thread.sleep(10);
             }
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
+            if (e instanceof IOException) {
+            }
         }
     }
 
@@ -92,9 +108,9 @@ public class ClientManager {
             SocketChannel sc = SocketChannel.open();
             Selector selector = Selector.open();
             sc.configureBlocking(false);
-            key = sc.register(selector, SelectionKey.OP_CONNECT, new Session());
+            key = sc.register(selector, SelectionKey.OP_CONNECT);
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
         }
         System.out.println("#ClientManager.init");
     }
@@ -111,7 +127,7 @@ public class ClientManager {
 
             key.interestOps(SelectionKey.OP_READ);
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
         }
         System.out.println("#ClientManager.connect");
     }
@@ -149,7 +165,7 @@ public class ClientManager {
                     }
                 }
             } catch (Exception e) {
-                System.err.println(e);
+                e.printStackTrace();
                 System.exit(99);
             }
         }

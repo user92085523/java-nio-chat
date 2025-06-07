@@ -43,7 +43,7 @@ public class InputExchanges {
         return inputExchanges[idx];
     }
 
-    public int getInputCnt() {
+    public int size() {
         return inputCnt;
     }
 

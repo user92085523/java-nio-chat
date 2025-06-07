@@ -49,6 +49,7 @@ public class OutputExchange {
     public OutputExchange recycle() {
         pdu.clear();
         pduSize = 0;
+        receiversKey.clear();
 
         return this;
     }

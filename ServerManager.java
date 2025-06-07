@@ -19,15 +19,17 @@ import chat.session.ClientInfo;
 import chat.session.Session;
 import chat.session.SessionManager;
 import chat.util.Const;
+import chat.event.Processor;
 import chat.event.Reader;
 import chat.event.Writer;
 import chat.exchange.InputExchanges;
 import chat.exchange.OutputExchanges;
 import chat.server.ServerProcessor;
+import chat.server.ServerReader;
 
 public class ServerManager {
-    private final ServerProcessor processor = new ServerProcessor();
-    private final Reader reader = new Reader();
+    private final Processor processor = new ServerProcessor();
+    private final Reader reader = new ServerReader();
     private final Writer writer = new Writer();
     public final InputExchanges inExchanges = new InputExchanges();
     public final OutputExchanges outExchanges = new OutputExchanges();
@@ -39,7 +41,7 @@ public class ServerManager {
         try {
             selector = Selector.open();
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
         }
     }
 
@@ -63,6 +65,10 @@ public class ServerManager {
                 while (iter.hasNext()) {
                     SelectionKey key = iter.next();
                     iter.remove();
+
+                    if (!key.isValid()) {
+                        continue;
+                    }
     
                     if (key.isAcceptable()) {
                         SessionManager.accept(key);
@@ -70,9 +76,9 @@ public class ServerManager {
 
                     if (key.isReadable()) {
                         
-                        reader.handle(key, inExchanges);
+                        int inputCnt = reader.handle(key, inExchanges);
 
-                        if (inExchanges.hasInputs()) {
+                        if (inputCnt > 0) {
 
                             processor.handle(inExchanges, outExchanges);
                             // inExchanges.echo();
@@ -98,6 +104,8 @@ public class ServerManager {
                     // System.out.println("session has pending:" + session.getPendingExchanges().getPendingCnt());
                 }
 
+                SessionManager.clearDisconnectedClients();
+
                 System.out.println("time: " + (System.currentTimeMillis() - start) + " ms");
                 Thread.sleep(1000);
                 System.out.println("\033[H\033[2J");
@@ -117,7 +125,7 @@ public class ServerManager {
             ServerSocket ss = ssc.socket();
             ss.bind(new InetSocketAddress(Const.Server.PORT));
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
         }
     }
 
@@ -129,7 +137,7 @@ public class ServerManager {
             int bytes_written = sc.write(ByteBuffer.wrap(buf));
             // System.out.println("bytes_written: " + bytes_written);
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
         }
     }
 }

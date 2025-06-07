@@ -6,6 +6,7 @@ import java.util.Set;
 
 import javax.naming.directory.InvalidAttributeValueException;
 
+import chat.event.Processor;
 import chat.exchange.InputExchange;
 import chat.exchange.InputExchanges;
 import chat.exchange.OutputExchanges;
@@ -15,31 +16,18 @@ import chat.session.Session;
 import chat.session.SessionManager;
 import chat.util.Header;
 
-public class ServerProcessor {
+public class ServerProcessor extends Processor {
     private byte[] separator = new byte[] {0x20};
-    public ServerProcessor(){}
 
-    public void handle(InputExchanges inExchanges, OutputExchanges outExchanges) {
-        try {
-            for (int i = 0, len = inExchanges.getInputCnt(); i < len; i++) {
-                resolve(inExchanges.getInput(i), outExchanges);
-            }   
-        } catch (Exception e) {
-            e.printStackTrace();
-            //TODO DC? clear outExchange.queued?
-            System.out.println("DC");
-        }
-    }
-
-    private void resolve(InputExchange inExchange, OutputExchanges outExchanges) throws Exception{
+    protected void resolve(InputExchange inExchange, OutputExchanges outExchanges) throws Exception{
         Command cmd = inExchange.getCommand();
         switch (cmd) {
             case MSG_ALL, MSG_GROUP, MSG_TO -> {
                 byte[] pdu = createPdu(cmd, inExchange);
                 Set<SelectionKey> receiversKey = getReceiversKey(cmd, inExchange);
-                // if (!receiversKey.isEmpty()) {
+                if (!receiversKey.isEmpty()) {
                     outExchanges.setDataMoveToQueued(pdu, receiversKey);
-                // }
+                }
             }
             default -> {
                 throw new InvalidAttributeValueException("Client sending Invalid cmd");

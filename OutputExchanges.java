@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -44,34 +45,42 @@ public class OutputExchanges {
     }
 
     private void handlePoolShortage() {
+        System.out.println("pool create");
+        this.echo();
         for (int i = 0; i < FREEING_PENDING_SIZE; i++) {
-            OutputExchange outExchange = pending.getFirst();
+            OutputExchange outExchange = pending.removeFirst();
             handlePendingClients(outExchange.getReceiversKey());
-            removePendingAddToPool();
-            this.echo();
-            System.out.println("");
+            pool.add(outExchange.recycle());
         }
+        System.out.println();
+        System.out.println("end create");
+        this.echo();
+        System.out.println();
     }
 
-    private void handlePendingClients(Set<SelectionKey> remainingReceiversKey) {
-        // System.out.println("clients:" + remainingReceiversKey.size());
-        remainingReceiversKey.forEach(key -> {
+    private void handlePendingClients(Set<SelectionKey> receiversKey) {
+        System.out.println("handlePendingClients");
+        receiversKey.forEach(key -> {
             SessionManager.disconnect(key);
         });
-        // System.out.println("clients:" + remainingReceiversKey.size());
     }
 
     public void setDataMoveToQueued(byte[] pdu, Set<SelectionKey> receiversKey) {
+        System.out.println("setDataMoveToQueued");
         if (pool.isEmpty()) {
             handlePoolShortage();
+            //TODO 現地点ではここでremoveしても無駄な事がほとんどだが
+            if (SessionManager.removeDisconnectedClientsFrom(receiversKey).isEmpty()) {
+                System.out.println("setDataMoveToQueued receiversKey isEmpty");
+                return;
+            }
         }
-        // System.out.println("adding to queued");
-        // this.echo();
-        System.out.println("adding receiversKey isEmpty:" + receiversKey.isEmpty());
         
         queued.add(pool.remove().set(pdu, receiversKey));
+
         System.out.println("add to queued");
         this.echo();
+        System.out.println();
     }
 
     public void removeQueuedAddToPool() {
@@ -105,34 +114,6 @@ public class OutputExchanges {
 
         pool.add(pending.remove(idx).recycle());
     }
-
-    // public void run() {
-    //     Random random = new Random();
-    //     int x = random.nextInt(1, 20);
-    //     int y = random.nextInt(x);
-    //     System.out.println("x=" + x + " y=" + y);
-
-    //     for (int i = 0; i < x; i++) {
-    //         if (pool.isEmpty()) {
-    //             for (OutputExchange output : queued) {
-    //                 System.out.println("id=" + output.getId());
-    //             }
-    //             throw new Error("pool empty");
-    //         }
-    //         queued.add(pool.remove());
-    //     }
-
-    //     for (int i = 0; i < y; i++) {
-    //         if (queued.isEmpty()) {
-    //             throw new Error("queued empty");
-    //         }
-    //         pool.add(queued.remove());
-    //     }
-
-    //     System.out.println("queued:" + queued.size());
-    //     System.out.println("pool:" + pool.size());
-    //     System.out.println("queued first id:" + queued.peek().getId());
-    // }
 
     public void echo() {
         System.out.println("pool:" + pool.size());
