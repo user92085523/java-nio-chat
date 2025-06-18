@@ -2,12 +2,13 @@ package chat.exchange;
 
 import java.nio.ByteBuffer;
 
+import chat.util.Const;
 import chat.util.Header;
 
 public class InputTempStorage {
     private final ByteBuffer InputBuf;
-    private final ByteBuffer Pdu = ByteBuffer.allocateDirect(1024);
-    private final ByteBuffer PayloadSizeBuf = ByteBuffer.allocate(3);
+    private final byte[] h1 = new byte[Const.Pdu.H1_SIZE];
+    private int payloadSize;
     private int pduSize;
 
     public InputTempStorage() {
@@ -18,38 +19,23 @@ public class InputTempStorage {
         InputBuf = ByteBuffer.allocateDirect(size);
     }
 
-    public ByteBuffer getInputBuf() {
+    public ByteBuffer getBuf() {
         return InputBuf;
     }
 
-    public ByteBuffer getPdu() {
-        return Pdu;
-    }
-
-    public int getPayloadSize() {
-        int limit = InputBuf.limit();
-
-        InputBuf.limit(PayloadSizeBuf.capacity());
-        PayloadSizeBuf.put(InputBuf);
-        PayloadSizeBuf.clear();
-        InputBuf.limit(limit);
+    public int setPayloadSize() {
+        InputBuf.get(h1);
         InputBuf.rewind();
 
-        return Header.getPayloadSize(PayloadSizeBuf.array());
+        payloadSize = Header.getPayloadSize(h1);
+
+        return payloadSize;
     }
 
-    public void readPdu() {
-        int limit = InputBuf.limit();
+    public int setPduSize() {
+        pduSize = payloadSize + Const.Pdu.HEADER_TOTAL_SIZE;
 
-        InputBuf.limit(pduSize);
-        Pdu.put(InputBuf);
-        Pdu.flip();
-        InputBuf.limit(limit);
-        InputBuf.compact();
-    }
-
-    public void setPduSize(int size) {
-        pduSize = size;
+        return pduSize;
     }
     
     public void resetPduSize() {
@@ -60,19 +46,23 @@ public class InputTempStorage {
         return pduSize;
     }
 
-    public int getInputBufPosition() {
+    public int getPayloadSize() {
+        return payloadSize;
+    }
+
+    public int getBufPosition() {
         return InputBuf.position();
     }
 
-    public int getInputBufLimit() {
+    public int getBufLimit() {
         return InputBuf.limit();
     }
 
-    public void flipInputBuf() {
+    public void flipBuf() {
         InputBuf.flip();
     }
 
-    public void compactInputBuf() {
+    public void compactBuf() {
         InputBuf.compact();
     }
 }

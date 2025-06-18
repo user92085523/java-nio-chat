@@ -22,6 +22,30 @@ public enum Command {
         this.Command = b;
     }
 
+    public static byte desolve(Command cmd) {
+        switch (cmd) {
+            case IM_ALIVE:
+                return 0;
+            case MSG_ALL:
+                return 10;
+            case MSG_GROUP:
+                return 11;
+            case MSG_TO:
+                return 12;
+            
+            case IS_ALIVE:
+                return -1;
+            case DISPLAY_MSG_ALL:
+                return -11;
+            case DISPLAY_MSG_GROUP:
+                return -12;
+            case DISPLAY_MSG_TO:
+                return -13;
+            default:
+                throw new Error("Invalid Command maybe dc this client");
+        }
+    }
+
     public static Command resolve(byte b) {
         switch (b) {
             case 0:

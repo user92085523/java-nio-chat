@@ -9,21 +9,22 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import chat.session.ClientID;
+import chat.session.ClientInfo;
 import chat.session.Session;
 import chat.util.Const;
 
 public class SessionManager {
     private static long sessionCnt = 0L;
-    private static Set<Long> clientsId = new HashSet<>();
-    private static HashMap<Long, SelectionKey> clientsEntity = new HashMap<>();
+    private static Set<Long> connectedClientsId = new HashSet<>();
+    private static HashMap<Long, SelectionKey> connectedClientsEntity = new HashMap<>();
+    private static Set<SelectionKey> disconnectedClients = new HashSet<>();
 
     public SessionManager() {
         System.out.println("SessionManager: " + hashCode());
     }
 
     public static void accept(SelectionKey key) {
-        if (clientsId.size() == Const.Server.MAX_CLIENT) {
+        if (connectedClientsId.size() >= Const.Server.MAX_CLIENT) {
             System.out.println("max client size");
             //TODO
             return;
@@ -38,34 +39,41 @@ public class SessionManager {
             Session session = createSession(tempKey);
             tempKey.attach(session);
 
-            addClient(session.getClientID().getId(), tempKey);
-
-            // clientsId.stream()
-            //     .forEach(id -> System.out.println("id: " + id));
-            // clientsEntity.forEach((k, v) -> System.out.println("key: " + k + "       value: " + v));
-            
+            addClient(session.getClientInfo().getId(), tempKey);
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
             System.exit(-1);
         }
     }
 
     public static void disconnect(SelectionKey key) {
+        if (disconnectedClients.contains(key)) {
+            System.out.println("already DCed");
+            return;
+        }
+
         try {
             SocketChannel sc = (SocketChannel) key.channel();
             Session session = (Session) key.attachment();
             sc.close();
             key.cancel();
 
-            removeClient(session.getClientID().getId());
+            disconnectedClients.add(key);
 
-            // clientsId.stream()
-            //     .forEach(id -> System.out.println("id: " + id));
+            System.out.println("disconnect");
+            removeClient(session.getClientInfo().getId());
 
-            // clientsEntity.forEach((k, v) -> System.out.println("key: " + k + "       value: " + v));
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
         }
+    }
+
+    public static void handleClosedChannelException(SelectionKey key) {
+        System.out.println("handleClosedChannelException");
+        key.cancel();
+        disconnectedClients.add(key);
+        Session session = (Session) key.attachment();
+        removeClient(session.getClientInfo().getId());
     }
 
     private static Session createSession(SelectionKey key) {
@@ -73,16 +81,41 @@ public class SessionManager {
     }
 
     private static void addClient(long id, SelectionKey key) {
-        clientsId.add(id);
-        clientsEntity.put(id, key);
+        connectedClientsId.add(id);
+        connectedClientsEntity.put(id, key);
     }
 
-    private static  void removeClient(long id) {
-        clientsId.remove(id);
-        clientsEntity.remove(id);
+    private static void removeClient(long id) {
+        if (connectedClientsId.contains(id)) {
+            connectedClientsId.remove(id);
+        } else {
+        }
+
+        if (connectedClientsEntity.containsKey(id)) {
+            disconnectedClients.add(connectedClientsEntity.get(id));
+            System.out.println("dcclients:" + disconnectedClients);
+            connectedClientsEntity.remove(id);
+        } else {
+        }
     }
 
-    public static Set<SelectionKey> getClientsKey() {
-        return new HashSet<SelectionKey>(clientsEntity.values());
+    public static int getClientsCnt() {
+        return connectedClientsId.size();
+    }
+
+    public static void clearDisconnectedClients() {
+        disconnectedClients.clear();
+    }
+
+    public static Set<SelectionKey> getClientsKeyClone() {
+        return new HashSet<SelectionKey>(connectedClientsEntity.values());
+    }
+
+    public static Set<SelectionKey> removeDisconnectedClientsFrom(Set<SelectionKey> receiversKey) {
+        if (!disconnectedClients.isEmpty()) {
+            receiversKey.removeAll(disconnectedClients);
+        }
+
+        return receiversKey;
     }
 }

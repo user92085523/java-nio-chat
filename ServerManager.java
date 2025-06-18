@@ -15,20 +15,24 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import chat.session.ClientID;
+import chat.session.ClientInfo;
 import chat.session.Session;
 import chat.session.SessionManager;
 import chat.util.Const;
+import chat.event.Processor;
 import chat.event.Reader;
 import chat.event.Writer;
-import chat.exchange.Exchange;
-import chat.exchange.ExchangeManager;
-import chat.exchange.ServerExchangeProcessor;
+import chat.exchange.InputExchanges;
+import chat.exchange.OutputExchanges;
+import chat.server.ServerProcessor;
+import chat.server.ServerReader;
 
 public class ServerManager {
-    private final ExchangeManager exchangeManager = new ExchangeManager(new ServerExchangeProcessor());
-    private final Reader reader = new Reader();
+    private final Processor processor = new ServerProcessor();
+    private final Reader reader = new ServerReader();
     private final Writer writer = new Writer();
+    public final InputExchanges inExchanges = new InputExchanges();
+    public final OutputExchanges outExchanges = new OutputExchanges();
 
     private Selector selector;
 
@@ -37,7 +41,7 @@ public class ServerManager {
         try {
             selector = Selector.open();
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
         }
     }
 
@@ -61,34 +65,46 @@ public class ServerManager {
                 while (iter.hasNext()) {
                     SelectionKey key = iter.next();
                     iter.remove();
+
+                    if (!key.isValid()) {
+                        continue;
+                    }
     
                     if (key.isAcceptable()) {
                         SessionManager.accept(key);
                     }
 
                     if (key.isReadable()) {
+                        
+                        int inputCnt = reader.handle(key, inExchanges);
 
-                        List<Exchange> inExchanges = reader.handle(key);
+                        if (inputCnt > 0) {
 
-                        if (inExchanges == null) {
-                            System.out.println("NO EXCHANGES");
-                            continue;
-                        }
+                            processor.handle(inExchanges, outExchanges);
+                            // inExchanges.echo();
+                            inExchanges.reset();
+                            // System.out.println("reset");
 
-                        if (inExchanges.size() > 0) {
-                            System.out.println("inputExchanges size: " + inExchanges.size());
+                            // outExchanges.echo();
+                            // System.out.println("queued:" + outExchanges.getQueued().size());
 
-                            List<Exchange> outExchanges = exchangeManager.process(inExchanges);
-
-                            if (outExchanges != null) {
-                                writer.writeNow(outExchanges);
+                            if (outExchanges.hasQueued()) {
+                                writer.tryWrite(outExchanges);
+                                outExchanges.echo();
                             }
+                            // outExchanges.run();
                         }
-
-                        inExchanges.clear();
 
                     }
+
+                    // Session session = (Session) key.attachment();
+
+                    // if (session == null) continue;
+
+                    // System.out.println("session has pending:" + session.getPendingExchanges().getPendingCnt());
                 }
+
+                SessionManager.clearDisconnectedClients();
 
                 System.out.println("time: " + (System.currentTimeMillis() - start) + " ms");
                 Thread.sleep(1000);
@@ -96,7 +112,7 @@ public class ServerManager {
                 System.out.flush();
             }
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
             throw new Error("ServerManager");
         }
     }
@@ -109,7 +125,7 @@ public class ServerManager {
             ServerSocket ss = ssc.socket();
             ss.bind(new InetSocketAddress(Const.Server.PORT));
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
         }
     }
 
@@ -121,7 +137,7 @@ public class ServerManager {
             int bytes_written = sc.write(ByteBuffer.wrap(buf));
             // System.out.println("bytes_written: " + bytes_written);
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
         }
     }
 }

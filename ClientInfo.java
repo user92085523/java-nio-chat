@@ -1,20 +1,22 @@
 package chat.session;
 
 import java.nio.channels.SelectionKey;
-import java.nio.charset.StandardCharsets;
 
-public class ClientID {
+public class ClientInfo {
     private long id;
     private byte[] name;
+    private int nameSize;
     private final SelectionKey key;
 
-    public ClientID(long id, SelectionKey key) {
-        System.out.println("ClientID: " + hashCode());
+    public ClientInfo(long id, SelectionKey key) {
+        System.out.println("ClientInfo: " + hashCode());
         this.id = id;
         this.key = key;
 
         String temp = "太郎" + id;
         name = temp.getBytes();
+
+        nameSize = name.length;
     }
 
     public long getId() {
@@ -27,6 +29,10 @@ public class ClientID {
 
     public byte[] getName() {
         return name;
+    }
+
+    public int getNameSize() {
+        return nameSize;
     }
 
     public SelectionKey getKey() {
