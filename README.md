@@ -19,10 +19,10 @@
 * Reader(受信)
 * Processor(受信データの処理)
 * Writer(送信)
-* InputExchange(入力データの実体)
+* InputExchange(受信データの実体)
 * OutputExchange(出力データの実体)
-* InputExchanges(入力データ管理)
-* OutputExchanges(出力データの管理)
+* InputExchanges(受信データ集合の管理)
+* OutputExchanges(出力データ集合の管理)
 
 ###### 注意事項
 すべての機能が実装されているわけではありません
